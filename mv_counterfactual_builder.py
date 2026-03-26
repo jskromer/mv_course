@@ -216,10 +216,10 @@ would have used without the retrofit?*
         with col_chart:
             fig, ax = plt.subplots(figsize=(8, 4))
             x_pos = np.arange(12)
-            ax.bar(x_pos - 0.2, m["y_actual"] / 1000, 0.4,
-                   label="Actual baseline kWh", color="#4C72B0", alpha=0.8)
-            ax.bar(x_pos + 0.2, m["y_pred"] / 1000, 0.4,
-                   label="Model predicted kWh", color="#DD8452", alpha=0.8)
+            ax.plot(x_pos, m["y_actual"] / 1000, "o-",
+                    label="Actual baseline kWh", color="#4C72B0", linewidth=2, markersize=6)
+            ax.plot(x_pos, m["y_pred"] / 1000, "s--",
+                    label="Model predicted kWh", color="#DD8452", linewidth=2, markersize=6)
             ax.set_xticks(x_pos)
             ax.set_xticklabels(MONTHS)
             ax.set_ylabel("kWh (thousands)")
@@ -229,6 +229,79 @@ would have used without the retrofit?*
             plt.tight_layout()
             st.pyplot(fig)
             plt.close()
+
+        # Scatter plots: kWh vs HDD and kWh vs CDD with regression line
+        st.divider()
+        st.markdown("### Baseline Scatter Plots")
+
+        hdd_vals = df_base["HDD"].values.astype(float)
+        cdd_vals = df_base["CDD"].values.astype(float)
+        kwh_vals = m["y_actual"]
+        c = m["coefs"]
+
+        fig_sc, (ax_hdd, ax_cdd) = plt.subplots(1, 2, figsize=(12, 4.5))
+
+        if m["type"] == "linear_hdd_cdd":
+            # Partial regression plots: remove the effect of the other variable
+            # kWh vs HDD plot: adjust kWh by removing CDD effect
+            kwh_adj_hdd = (kwh_vals - c["cdd"] * cdd_vals) / 1000
+            ax_hdd.scatter(hdd_vals, kwh_adj_hdd, color="#4C72B0", s=60, zorder=5, label="Adjusted data")
+            for i_pt, mo in enumerate(MONTHS):
+                ax_hdd.annotate(mo, (hdd_vals[i_pt], kwh_adj_hdd[i_pt]),
+                                textcoords="offset points", xytext=(5, 5), fontsize=8, color="#666")
+            hdd_range = np.linspace(0, max(hdd_vals) * 1.05, 50)
+            fit_line = (c["intercept"] + c["hdd"] * hdd_range) / 1000
+            ax_hdd.plot(hdd_range, fit_line, "--", color="#DD8452", linewidth=2, label="HDD effect")
+            ax_hdd.set_ylabel("kWh adjusted for CDD (thousands)", fontsize=10)
+            ax_hdd.set_title("kWh vs. HDD (CDD effect removed)", fontsize=12)
+
+            # kWh vs CDD plot: adjust kWh by removing HDD effect
+            kwh_adj_cdd = (kwh_vals - c["hdd"] * hdd_vals) / 1000
+            ax_cdd.scatter(cdd_vals, kwh_adj_cdd, color="#4C72B0", s=60, zorder=5, label="Adjusted data")
+            for i_pt, mo in enumerate(MONTHS):
+                ax_cdd.annotate(mo, (cdd_vals[i_pt], kwh_adj_cdd[i_pt]),
+                                textcoords="offset points", xytext=(5, 5), fontsize=8, color="#666")
+            cdd_range = np.linspace(0, max(cdd_vals) * 1.05, 50)
+            fit_line_cdd = (c["intercept"] + c["cdd"] * cdd_range) / 1000
+            ax_cdd.plot(cdd_range, fit_line_cdd, "--", color="#DD8452", linewidth=2, label="CDD effect")
+            ax_cdd.set_ylabel("kWh adjusted for HDD (thousands)", fontsize=10)
+            ax_cdd.set_title("kWh vs. CDD (HDD effect removed)", fontsize=12)
+
+        else:
+            # Simple model or mean — plot raw data
+            ax_hdd.scatter(hdd_vals, kwh_vals / 1000, color="#4C72B0", s=60, zorder=5, label="Baseline data")
+            for i_pt, mo in enumerate(MONTHS):
+                ax_hdd.annotate(mo, (hdd_vals[i_pt], kwh_vals[i_pt] / 1000),
+                                textcoords="offset points", xytext=(5, 5), fontsize=8, color="#666")
+            if "hdd" in c:
+                hdd_range = np.linspace(0, max(hdd_vals) * 1.05, 50)
+                fit_line = (c["intercept"] + c["hdd"] * hdd_range) / 1000
+                ax_hdd.plot(hdd_range, fit_line, "--", color="#DD8452", linewidth=2, label="Model fit")
+            ax_hdd.set_ylabel("kWh (thousands)", fontsize=11)
+            ax_hdd.set_title("kWh vs. HDD", fontsize=13)
+
+            ax_cdd.scatter(cdd_vals, kwh_vals / 1000, color="#4C72B0", s=60, zorder=5, label="Baseline data")
+            for i_pt, mo in enumerate(MONTHS):
+                ax_cdd.annotate(mo, (cdd_vals[i_pt], kwh_vals[i_pt] / 1000),
+                                textcoords="offset points", xytext=(5, 5), fontsize=8, color="#666")
+            ax_cdd.set_ylabel("kWh (thousands)", fontsize=11)
+            ax_cdd.set_title("kWh vs. CDD", fontsize=13)
+
+        ax_hdd.set_xlabel("Heating Degree Days (HDD)", fontsize=11)
+        ax_hdd.legend(fontsize=9)
+        ax_hdd.grid(alpha=0.3)
+        ax_hdd.spines["top"].set_visible(False)
+        ax_hdd.spines["right"].set_visible(False)
+
+        ax_cdd.set_xlabel("Cooling Degree Days (CDD)", fontsize=11)
+        ax_cdd.legend(fontsize=9)
+        ax_cdd.grid(alpha=0.3)
+        ax_cdd.spines["top"].set_visible(False)
+        ax_cdd.spines["right"].set_visible(False)
+
+        plt.tight_layout()
+        st.pyplot(fig_sc)
+        plt.close()
 
         st.info("✅ Model is fitted and locked. Proceed to the **Reporting Period** tab to build the counterfactual.")
 
@@ -417,7 +490,9 @@ with tab3:
         months_shown = [r["Month"] for r in rows]
         savings_vals = [r["Savings kWh"] / 1000 for r in rows]
         colors = ["#2ca02c" if s >= 0 else "#d62728" for s in savings_vals]
-        ax3a.bar(months_shown, savings_vals, color=colors, alpha=0.85)
+        ax3a.plot(months_shown, savings_vals, "o-", color="#2ca02c", linewidth=2, markersize=6)
+        for i_pt, (sv, c) in enumerate(zip(savings_vals, colors)):
+            ax3a.plot(i_pt, sv, "o", color=c, markersize=8, zorder=5)
         ax3a.axhline(0, color="black", linewidth=0.8)
         ax3a.set_ylabel("kWh saved (thousands)")
         ax3a.set_title("Monthly Verified Savings")
