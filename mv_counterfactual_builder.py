@@ -103,6 +103,7 @@ st.set_page_config(
     layout="wide",
 )
 
+st.markdown("[← Back to course](https://cfdesigns.vercel.app)")
 st.title("⚡ M&V Counterfactual Builder")
 st.caption("Whole-Building Option C — Interactive Month-by-Month Reporting Period Walkthrough")
 
@@ -556,22 +557,9 @@ The frozen model is what makes savings verifiable and auditable.
 # SIDEBAR — Course Links
 # ═══════════════════════════════════════════════════════════════════════════
 
-st.sidebar.divider()
-st.sidebar.markdown("### Counterfactual Designs")
-st.sidebar.markdown("""
-- [CfDesigns Course](https://cfdesigns.vercel.app)
-- [CMVP Capstone](https://cmvp-capstone.vercel.app)
-- [counterfactual-designs.com](https://counterfactual-designs.com)
-""")
-
 # ═══════════════════════════════════════════════════════════════════════════
 # FOOTER
 # ═══════════════════════════════════════════════════════════════════════════
 
 st.divider()
-st.markdown(
-    "Part of the [Counterfactual Designs](https://cfdesigns.vercel.app) "
-    "course by Steve Kromer, P.E., CMVP #1.  \n"
-    "See also: [CMVP Capstone](https://cmvp-capstone.vercel.app) · "
-    "[counterfactual-designs.com](https://counterfactual-designs.com)"
-)
+st.markdown("[← Back to course](https://cfdesigns.vercel.app)")
